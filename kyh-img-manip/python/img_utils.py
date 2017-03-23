@@ -1,5 +1,11 @@
-import base64, cv2, os, glob
+# a collection of useful image manipulation tools
+import os
+import glob
+import cv2
 import numpy as np
+
+__author__ = 'Kyle Hounslow'
+
 
 def resize_pad_image(img, new_dims, pad_output=True):
     old_height, old_width, ch = img.shape
@@ -56,45 +62,21 @@ def squarify_bbox(r):
     return [int(r[0]), int(r[1]), int(r[2]), int(r[3])]
 
 
-def draw_bboxes(im, bboxes, color, label="object"):
-    for bb in bboxes:
-        draw_bbox(im, bb, color, label=label)
-
-def draw_bbox(im, bb, color, label="object", font_size=1.5, frame_index=0):
-    if len(bb) != 0:
-        bb = np.array(bb, dtype=np.int)
-        cv2.rectangle(im, (bb[0], bb[1]), (bb[2], bb[3]), color, 2)
-        cv2.putText(im, label, (bb[0], bb[1]), 1, font_size, color, 2)
-        draw_frame_index(im, frame_index)
-
-def show_image(im, label="image", delay=0):
-    cv2.imshow(label, im)
-    cv2.waitKey(delay) & 0xFF == ord('q')
-
-def create_empty_dirtree(srcdir, dstdir, onerror=None):
-    srcdir = os.path.abspath(srcdir)
-    srcdir_prefix = len(srcdir) + len(os.path.sep)
-    try:
-        os.mkdir(srcdir)
-    except OSError as e:
-        if onerror is not None:
-            onerror(e)
-    for root, dirs, files in os.walk(srcdir, onerror=onerror):
-        for dirname in dirs:
-            dirpath = os.path.join(dstdir, root[srcdir_prefix:], dirname)
-            try:
-                os.mkdir(dirpath)
-            except OSError as e:
-                if onerror is not None:
-                    onerror(e)
-
-def crop_img(bbox, im):
+def crop_img(bbox, img):
+    """
+    Crops an image defined by a bounding box (bbox)
+        NOTE: bbox MUST reside within image bounds!
+    :param bbox: bounding box defined by top left and bottom right corners [x1,y1,x2,y2]
+    :param img: input image
+    :return cropped_img: output image
+    """
     x1 = int(bbox[0])
     y1 = int(bbox[1])
     x2 = int(bbox[2])
     y2 = int(bbox[3])
-    cropped_img = im[y1:y2, x1:x2]
+    cropped_img = img[y1:y2, x1:x2]
     return cropped_img
+
 
 def compute_dist(vec1, vec2, mode='cosine'):
     """
@@ -112,6 +94,7 @@ def compute_dist(vec1, vec2, mode='cosine'):
         dist = None
     return dist
 
+
 def make_grids_of_images(images_path, image_shape, grid_shape):
     """
     :param image_path_list: string,
@@ -123,7 +106,7 @@ def make_grids_of_images(images_path, image_shape, grid_shape):
 
     """
     # get all images from folder
-    img_path_glob = glob.iglob(os.path.join(images_path,'*'))
+    img_path_glob = glob.iglob(os.path.join(images_path, '*'))
     img_path_list = []
     for ip in img_path_glob:
         print ip
@@ -133,9 +116,9 @@ def make_grids_of_images(images_path, image_shape, grid_shape):
         print 'No images found at {}'.format(images_path)
         return None
     image_grids = []
-    #start with black canvas to draw images to
+    # start with black canvas to draw images to
     grid_image = np.zeros(shape=(image_shape[1] * (grid_shape[1]), image_shape[0] * grid_shape[0], 3),
-                            dtype=np.uint8)
+                          dtype=np.uint8)
     cursor_pos = [0, 0]
     for img_path in img_path_list:
         img = cv2.imread(img_path)
@@ -145,21 +128,15 @@ def make_grids_of_images(images_path, image_shape, grid_shape):
         img = cv2.resize(img, image_shape)
         # draw image to black canvas
         grid_image[cursor_pos[1]:cursor_pos[1] + image_shape[1], cursor_pos[0]:cursor_pos[0] + image_shape[0]] = img
-        cursor_pos[0] += image_shape[0] # increment cursor x position
+        cursor_pos[0] += image_shape[0]  # increment cursor x position
         if cursor_pos[0] >= grid_shape[0] * image_shape[0]:
-            cursor_pos[1] += image_shape[1] #increment cursor y position
+            cursor_pos[1] += image_shape[1]  # increment cursor y position
             cursor_pos[0] = 0
             if cursor_pos[1] >= grid_shape[1] * image_shape[1]:
                 cursor_pos = [0, 0]
-                #reset black canvas
+                # reset black canvas
                 grid_image = np.zeros(shape=(image_shape[1] * (grid_shape[1]), image_shape[0] * grid_shape[0], 3),
                                       dtype=np.uint8)
         image_grids.append(grid_image)
 
     return image_grids
-
-grids = make_grids_of_images('/home/kyle/Pictures', (256,256), (2,2))
-for img in grids:
-    cv2.imshow('img',img)
-    cv2.waitKey(100)
-
