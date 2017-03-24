@@ -95,36 +95,53 @@ def compute_dist(vec1, vec2, mode='cosine'):
     return dist
 
 
-def make_grids_of_images(images_path, image_shape, grid_shape):
+def make_grids_of_images(image_list, image_shape, grid_shape):
     """
-    :param image_path_list: string,
+    ---------------------------------------------------------------------------------------------
+    author: Kyle Hounslow
+    ---------------------------------------------------------------------------------------------
+    Converts a list of single images into a list of 'grid' images of specified rows and columns.
+    A new grid image is started once rows and columns of grid image is filled.
+    Empty space of incomplete grid images are filled with black pixels
+    ---------------------------------------------------------------------------------------------
+    :param image_list: python list of input images
     :param image_shape: tuple, size each image will be resized to for display
-    :param grid_shape: tuple, shape of image grid (rows,cols)
+    :param grid_shape: tuple, shape of image grid (rows, cols)
     :return: list of grid images in numpy array format
+    ---------------------------------------------------------------------------------------------
 
-    example usage: grids = make_grids_of_images('/Pictures', (64,64),(5,5))
+    example usage:
 
+    # load single image
+    img = cv2.imread('lena.jpg')
+    # duplicate image 50 times
+    num_imgs = 50
+    img_list = []
+    for i in xrange(num_imgs):
+        img_list.append(img)
+    # convert image list into grid images
+    grids = make_grids_of_images(img_list, (256, 256), (5, 5))
+    # iterate through grids and display
+    for grid in grids:
+        cv2.imshow('grid image', grid)
+        cv2.waitKey(0)
+
+    ----------------------------------------------------------------------------------------------
     """
-    # get all images from folder
-    img_path_glob = glob.iglob(os.path.join(images_path, '*'))
-    img_path_list = []
-    for ip in img_path_glob:
-        print ip
-        if ip.endswith('.jpg') or ip.endswith('.jpeg') or ip.endswith('.png'):
-            img_path_list.append(ip)
-    if len(img_path_list) < 1:
-        print 'No images found at {}'.format(images_path)
-        return None
+    if len(image_shape) != 2:
+        raise Exception('image shape must be list or tuple of length 2 (rows, cols)')
+    if len(grid_shape) != 2:
+        raise Exception('grid shape must be list or tuple of length 2 (rows, cols)')
     image_grids = []
-    # start with black canvas to draw images to
+    # start with black canvas to draw images onto
     grid_image = np.zeros(shape=(image_shape[1] * (grid_shape[1]), image_shape[0] * grid_shape[0], 3),
                           dtype=np.uint8)
     cursor_pos = [0, 0]
-    for img_path in img_path_list:
-        img = cv2.imread(img_path)
-        if img is None:
-            print 'ERROR: reading {}. skipping.'.format(img_path)
-            continue
+    start_new_img = False
+    for img in image_list:
+        if type(img).__module__ != np.__name__:
+            raise Exception('input of type {} is not a valid numpy array'.format(type(img)))
+        start_new_img = False
         img = cv2.resize(img, image_shape)
         # draw image to black canvas
         grid_image[cursor_pos[1]:cursor_pos[1] + image_shape[1], cursor_pos[0]:cursor_pos[0] + image_shape[0]] = img
@@ -134,9 +151,12 @@ def make_grids_of_images(images_path, image_shape, grid_shape):
             cursor_pos[0] = 0
             if cursor_pos[1] >= grid_shape[1] * image_shape[1]:
                 cursor_pos = [0, 0]
+                image_grids.append(grid_image)
                 # reset black canvas
                 grid_image = np.zeros(shape=(image_shape[1] * (grid_shape[1]), image_shape[0] * grid_shape[0], 3),
                                       dtype=np.uint8)
-        image_grids.append(grid_image)
-
+                start_new_img = True
+    if start_new_img is False:
+        image_grids.append(grid_image)  # add unfinished grid
     return image_grids
+
